@@ -9,6 +9,8 @@ import pandas as pd
 import plotly.graph_objects as go
 from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
+from scipy.optimize import minimize
+
 
 
 
@@ -17,7 +19,7 @@ import matplotlib.pyplot as plt
 
 class amorphous_order:
     
-    def __init__(self,filename,atom_number,division,fileformat='vasp'):
+    def __init__(self,reference,filename,atom_number,fileformat='vasp'):
         """
         Args:
             filename: a crystal structure file
@@ -27,7 +29,6 @@ class amorphous_order:
         Returns:
             matplotlib 3dlpot of the miller sphere scaled to relative periodicities.
         """
-        
         self.struc = read(filename,format=fileformat)
         original = np.array([[1,0,0],[0,1,0],[0,0,1]])
         self.struc = make_supercell(self.struc, original)
@@ -38,34 +39,112 @@ class amorphous_order:
         points_=self.struc.get_scaled_positions() #grab scaled, <abc> independent positions
         
         self.atom_locations=np.array([points_[i] for i in idx])
-        self.lattice_fit(division)# Fits the structure to a lattice
+        self.lattice_fit(reference,fileformat,atom_number)# Fits the structure to a lattice
         self.calculate_spacing()#Calculates spacings fora,b,c direction.
-        
+        self.basis_average=(self.plane_order([1,0,0])+self.plane_order([0,1,0])+self.plane_order([0,0,1]))/3
         
 
-    def lattice_fit(self,division):
+    def lattice_fit(self,reference, fileformat,atom_number):
         """
         outdated. Currently fitting function is being reworked
         Goal is to assign every atom a label in the lattice <n1,n2,n3>
         Can use reference to overlay atoms and optimize a fit
         """
     
-        points=np.zeros([len(self.atom_locations),3])
-        vecs=[[1,0,0],[0,1,0],[0,0,1]]
-        spread=[]
-        for k,v in enumerate(vecs):
-            y=[np.dot(a,v) for a in self.atom_locations]
-            x_=np.argsort(y)
-            res=[]
-            div=division[k]
-            x=np.zeros(len(y))
-            split=np.split(x_,div)
-            for i,n in enumerate(split):
-                for j,m in enumerate(split[0]):
-                    x[split[i][j]]=i+1
-            for l,ints in enumerate(x):
-                points[l][k]=ints
-        self.lattice_points=np.array(points)
+        def cost(shift,ll,al,lattice=False):
+            al_=copy(al)
+            al_+=np.array(shift)
+            distance=[]
+            lattice_match=[]
+            ll_=copy(ll)
+            ll_=[[i,x] for i,x in enumerate(ll_)]
+
+            for a in al_:
+                calc_=[]
+                for x in ll_:
+                    calc_.append([x[0],x[1]-a])
+
+
+                calc_=np.array([[x[0],np.linalg.norm(np.abs(np.array(x[1])-a))] for x in ll_])
+                close_idx=np.argmin(calc_[:,1])
+                distance.append(calc_[close_idx,1])
+                lattice_match.append(int(calc_[close_idx,0]))
+                ll_=list(ll_)
+                del ll_[close_idx]
+
+
+            if lattice:
+                return np.average(distance), lattice_match
+            else:
+                return np.average(distance)
+        
+        ref_lattice = read(reference,format=fileformat)
+        original = np.array([[2,0,0],[0,2,0],[0,0,2]])##Check this out more?
+        ref_lattice = make_supercell(ref_lattice, original)
+        idx=[i for i,x in enumerate(ref_lattice.numbers) if x==atom_number]
+        points_=ref_lattice.get_scaled_positions()
+        ll=np.array([points_[i] for i in idx])*2
+        
+        self.shift=minimize(cost,[0,0,0],method='nelder-mead',args=(ll,self.atom_locations))['x']
+        self.d,lattice_idx=cost(self.shift,ll,self.atom_locations,lattice=True)
+
+
+        
+
+        lattice_positions=np.zeros([len(self.atom_locations),3])
+        for basis in range(3):
+            v=ll[:,basis]
+            vmin=np.min(v)
+            v=np.array([x-vmin for x in v])
+            v[v<.01]=0.
+            vspace=np.min([x for x in v if x!=0.])
+            v=[np.round(x/vspace) for x in v]
+            
+            v=[v[i] for i in lattice_idx]
+            v=[x-np.min(v)+1 for x in v]
+            lattice_positions[:,basis]=v
+        
+        self.lattice_points=lattice_positions
+        self.ll=[ll[i] for i in lattice_idx]
+
+
+
+
+        # ll_.append(lattice_locations_)
+        # d_.append(d)
+        # ll_=[ll_[i] for i in np.argsort(d_)]
+        # al_=[al_[i] for i in np.argsort(d_)]
+        # f=[f[i] for i in np.argsort(d_)]
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+#         points=np.zeros([len(self.atom_locations),3])
+#         vecs=[[1,0,0],[0,1,0],[0,0,1]]
+#         spread=[]
+#         for k,v in enumerate(vecs):
+#             y=[np.dot(a,v) for a in self.atom_locations]
+#             x_=np.argsort(y)
+#             res=[]
+#             div=division[k]
+#             x=np.zeros(len(y))
+#             split=np.split(x_,div)
+#             for i,n in enumerate(split):
+#                 for j,m in enumerate(split[0]):
+#                     x[split[i][j]]=i+1
+#             for l,ints in enumerate(x):
+#                 points[l][k]=ints
+#         self.lattice_points=np.array(points)
+#         print(self.lattice_points)
     
     def calculate_spacing(self):
         """
@@ -89,7 +168,8 @@ class amorphous_order:
                 if x!=0:
                     s.append(a_[j]/x)
             self.spacing.append(np.average(s))
-        print(self.spacing)
+        
+
                                 
     def plane_order(self,plane):
         """
@@ -112,11 +192,13 @@ class amorphous_order:
     
         return np.average(s) #The average unit lattice deviation in planar direction
     
-    def miller_sphere_plot(self,n=200,c1=1.2,c2=10,cross_section=False):
+    def miller_sphere_plot(self,n=200,c1=1.2,c2=10,cross_section=False,plot=True):
         """Plotting function"""
         hkl=fibonacci_sphere(n)
         I=[self.plane_order(x) for x in hkl]
-        O=Order_plot(hkl,I,c1,c2)
+        self.I=I
+        if plot:
+            O=Order_plot(hkl,I,c1,c2)
         if cross_section:
             O.plot_cross_sections()
         
@@ -418,7 +500,8 @@ if __name__ == "__main__":
     
     # can reconcile all the atoms in the structure with group average
     # file='AlPO4_Cmcm_Z12.vasp'
-    file='S812/POSCAR.200'
+    file='S812/POSCAR.100'
+    reference='AlPO4_Cmcm_Z12.vasp'
 
-    amor=amorphous_order(file,13,[6,2,3])
+    amor=amorphous_order(reference,file,13)
     amor.miller_sphere_plot(cross_section=False)
