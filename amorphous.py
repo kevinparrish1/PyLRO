@@ -10,6 +10,9 @@ import plotly.graph_objects as go
 from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
+import mpl_toolkits.mplot3d.axes3d as p3
+import matplotlib.animation as animation
+from matplotlib.widgets import Slider
 
 
 
@@ -19,7 +22,7 @@ from scipy.optimize import minimize
 
 class amorphous_order:
     
-    def __init__(self,reference,filename,atom_number,fileformat='vasp'):
+    def __init__(self,filename,atom_number,fileformat='vasp'):
         """
         Args:
             filename: a crystal structure file
@@ -39,32 +42,29 @@ class amorphous_order:
         points_=self.struc.get_scaled_positions() #grab scaled, <abc> independent positions
         
         self.atom_locations=np.array([points_[i] for i in idx])
-        self.lattice_fit(reference,fileformat,atom_number)# Fits the structure to a lattice
+        self.lattice_fit(fileformat,atom_number)# Fits the structure to a lattice
         self.calculate_spacing()#Calculates spacings fora,b,c direction.
-        self.basis_average=(self.plane_order([1,0,0])+self.plane_order([0,1,0])+self.plane_order([0,0,1]))/3
+        # self.basis_average=(self.plane_order([1,0,0])+self.plane_order([0,1,0])+self.plane_order([0,0,1]))/3
+        self.basis_average=np.min([self.plane_order([1,0,0]),self.plane_order([0,1,0]),self.plane_order([0,0,1])])
         
 
-    def lattice_fit(self,reference, fileformat,atom_number):
+    def lattice_fit(self,fileformat,atom_number,n=8,x0=.5):
         """
         outdated. Currently fitting function is being reworked
         Goal is to assign every atom a label in the lattice <n1,n2,n3>
         Can use reference to overlay atoms and optimize a fit
         """
     
-        def cost(shift,ll,al,lattice=False):
+        def cost(scale,ll,al,lattice=False):
+            ll_=copy(ll)
+            ll_*=scale
             al_=copy(al)
-            al_+=np.array(shift)
             distance=[]
             lattice_match=[]
-            ll_=copy(ll)
             ll_=[[i,x] for i,x in enumerate(ll_)]
 
             for a in al_:
                 calc_=[]
-                for x in ll_:
-                    calc_.append([x[0],x[1]-a])
-
-
                 calc_=np.array([[x[0],np.linalg.norm(np.abs(np.array(x[1])-a))] for x in ll_])
                 close_idx=np.argmin(calc_[:,1])
                 distance.append(calc_[close_idx,1])
@@ -77,23 +77,41 @@ class amorphous_order:
                 return np.average(distance), lattice_match
             else:
                 return np.average(distance)
-        
-        ref_lattice = read(reference,format=fileformat)
-        original = np.array([[2,0,0],[0,2,0],[0,0,2]])##Check this out more?
-        ref_lattice = make_supercell(ref_lattice, original)
-        idx=[i for i,x in enumerate(ref_lattice.numbers) if x==atom_number]
-        points_=ref_lattice.get_scaled_positions()
-        ll=np.array([points_[i] for i in idx])*2
-        
-        self.shift=minimize(cost,[0,0,0],method='nelder-mead',args=(ll,self.atom_locations))['x']
-        self.d,lattice_idx=cost(self.shift,ll,self.atom_locations,lattice=True)
+        al=copy(self.atom_locations)
+        smallest=np.argmin([np.linalg.norm(x) for x in al])
+        base=al[smallest]
+        al=[x-al[smallest] for x in al]
+        lattice_locations=[]
+        norm_mat=self.struc.cell/np.linalg.norm(self.struc.cell)
+        a,b,c=norm_mat[0],norm_mat[1],norm_mat[2]
+        for ii in range(n):
+            for jj in range(n):
+                for kk in range(n):
+                    lattice_locations.append(ii*a+jj*b+kk*c)
+        lattice_locations=np.array(lattice_locations)
 
+            
+    
+        
+#         ref_lattice = read(reference,format=fileformat)
+#         original = np.array([[2,0,0],[0,2,0],[0,0,2]])##Check this out more?
+#         ref_lattice = make_supercell(ref_lattice, original)
+        
+        
+#         idx=[i for i,x in enumerate(ref_lattice.numbers) if x==atom_number]
+#         points_=ref_lattice.get_scaled_positions()
+#         ll=np.array([points_[i] for i in idx])*2
+        
+        self.scale=minimize(cost,x0,method='nelder-mead',args=(lattice_locations,al))['x']
+        self.d,lattice_idx=cost(self.scale,lattice_locations,al,lattice=True)
+        lattice_locations*=self.scale
+        lattice_locations+=base
 
         
 
         lattice_positions=np.zeros([len(self.atom_locations),3])
         for basis in range(3):
-            v=ll[:,basis]
+            v=lattice_locations[:,basis]
             vmin=np.min(v)
             v=np.array([x-vmin for x in v])
             v[v<.01]=0.
@@ -105,7 +123,9 @@ class amorphous_order:
             lattice_positions[:,basis]=v
         
         self.lattice_points=lattice_positions
-        self.ll=[ll[i] for i in lattice_idx]
+        self.ll=np.array([lattice_locations[i] for i in lattice_idx])
+        # self.atom_locations=np.array(al)
+
 
 
 
@@ -116,10 +136,6 @@ class amorphous_order:
         # al_=[al_[i] for i in np.argsort(d_)]
         # f=[f[i] for i in np.argsort(d_)]
 
-    
-    
-    
-    
     
     
     
@@ -498,10 +514,19 @@ def fibonacci_sphere(samples=1000):
 
 if __name__ == "__main__":
     
-    # can reconcile all the atoms in the structure with group average
-    # file='AlPO4_Cmcm_Z12.vasp'
-    file='S812/POSCAR.100'
-    reference='AlPO4_Cmcm_Z12.vasp'
 
-    amor=amorphous_order(reference,file,13)
+    file='../S812/POSCAR.70'
+
+
+    amor=amorphous_order(file,13)
     amor.miller_sphere_plot(cross_section=False)
+
+
+    fig = plt.figure()
+    ax = p3.Axes3D(fig)
+    ax.scatter(amor.atom_locations[:,0],amor.atom_locations[:,1],amor.atom_locations[:,2],color='r',s=200)
+    ax.scatter(amor.ll[:,0],amor.ll[:,1],amor.ll[:,2],color='k',s=25)
+    ax.set_xlabel('a')
+    ax.set_ylabel('b')
+    ax.set_zlabel('c')
+    plt.show()
