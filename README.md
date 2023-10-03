@@ -11,3 +11,5 @@ Workflow:
 *  Then a unit sphere (<x,y,z> representing <h,k,l>) is plotted where each <x,y,z> on the sphere is inversely scaled to the order parameter. This sphere is also color coded to represent relative order.
 * An optional 2 dimensional cross section of the sphere for the xy, xz, and yz planes may also be plotted.
 
+The function will be useful for displaying the process of disorder created in exploration of free energy landscapes. It should also help display directions that may retain bulk periodic properties in an amorphous solids.
+
