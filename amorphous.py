@@ -488,18 +488,18 @@ def fibonacci_sphere(samples=1000):
 if __name__ == "__main__":
     
 
-    file='../S812/POSCAR.70'
+    file='S812/POSCAR.70'
 
 
     amor=amorphous_order(file,13)
     amor.miller_sphere_plot(cross_section=False)
 
 
-    fig = plt.figure()
-    ax = p3.Axes3D(fig)
-    ax.scatter(amor.atom_locations[:,0],amor.atom_locations[:,1],amor.atom_locations[:,2],color='r',s=200)
-    ax.scatter(amor.ll[:,0],amor.ll[:,1],amor.ll[:,2],color='k',s=25)
-    ax.set_xlabel('a')
-    ax.set_ylabel('b')
-    ax.set_zlabel('c')
-    plt.show()
+    # fig = plt.figure()
+    # ax = p3.Axes3D(fig)
+    # ax.scatter(amor.atom_locations[:,0],amor.atom_locations[:,1],amor.atom_locations[:,2],color='r',s=200)
+    # ax.scatter(amor.ll[:,0],amor.ll[:,1],amor.ll[:,2],color='k',s=25)
+    # ax.set_xlabel('a')
+    # ax.set_ylabel('b')
+    # ax.set_zlabel('c')
+    # plt.show()
