@@ -26,35 +26,45 @@ class amorphous_order:
         """
         Args:
             filename: a crystal structure file
-            atom_number: the atomic number of the element chosen for miller plane analysis.
-            division: *temporary, byproduct of outdated lattice fitting. 3 integer list of the number periods in <abc> direction
+            atom_number: the atomic number of the element chosen for miller plane analysis. Only supports unit n=1 in unit cell
+            fileformat: ASE accepted file format
         
         Returns:
             matplotlib 3dlpot of the miller sphere scaled to relative periodicities.
         """
+        
+        
+        
         self.struc = read(filename,format=fileformat)
+        self.atom_number=atom_number
         original = np.array([[1,0,0],[0,1,0],[0,0,1]])
-        self.struc = make_supercell(self.struc, original)
-        if atom_number==None: #uses lowest atomic number species by default
+        self.struc = make_supercell(self.struc, original) 
+        if atom_number==None: #uses lowest atomic number species by default to calculate periodicity
             unique, counts = np.unique(self.struc.numbers, return_counts=True)
             atom_number=unique[np.argmin(counts)]
         idx=[i for i,x in enumerate(self.struc.numbers) if x==atom_number]
         points_=self.struc.get_scaled_positions() #grab scaled, <abc> independent positions
         
         self.atom_locations=np.array([points_[i] for i in idx])
-        self.lattice_fit(fileformat,atom_number)# Fits the structure to a lattice
-        self.calculate_spacing()#Calculates spacings fora,b,c direction.
-        # self.basis_average=(self.plane_order([1,0,0])+self.plane_order([0,1,0])+self.plane_order([0,0,1]))/3
-        self.basis_average=np.min([self.plane_order([1,0,0]),self.plane_order([0,1,0]),self.plane_order([0,0,1])])
+        self.lattice_fit(atom_number)# Fits the structure to a lattice
+        self.calculate_spacing()#Calculates spacings for a,b,c direction.
+
         
 
-    def lattice_fit(self,fileformat,atom_number,n=8,x0=.5):
+    def lattice_fit(self,n=8,x0=.5):
         """
-        outdated. Currently fitting function is being reworked
-        Goal is to assign every atom a label in the lattice <n1,n2,n3>
-        Can use reference to overlay atoms and optimize a fit
+        -Creates an nxnxn supercell of the shape of the structure (uses a,b,c vectors)
+        -Uses optimization algorithm to fit the structure's atoms to this supercell of lattice points
+        -Then calculates the <N_1,N_2,N_3> for each atom, where it should be in the lattice
+        Args:
+            n: the size of the sample supercell of lattice points
+            x0: initial guess on how much to scale the supercell to fit to the structure's atoms
+            
+        Returns:
+            
         """
-    
+        
+        # cost function, calculates total distance between atoms and nearest lattice points
         def cost(scale,ll,al,lattice=False):
             ll_=copy(ll)
             ll_*=scale
@@ -77,10 +87,14 @@ class amorphous_order:
                 return np.average(distance), lattice_match
             else:
                 return np.average(distance)
+        
+        #moves atom locations to origin
         al=copy(self.atom_locations)
         smallest=np.argmin([np.linalg.norm(x) for x in al])
         base=al[smallest]
         al=[x-al[smallest] for x in al]
+        
+        #creates sample of lattice points from structure. Is a normal sized lattice
         lattice_locations=[]
         norm_mat=self.struc.cell/np.linalg.norm(self.struc.cell)
         a,b,c=norm_mat[0],norm_mat[1],norm_mat[2]
@@ -91,24 +105,14 @@ class amorphous_order:
         lattice_locations=np.array(lattice_locations)
 
             
-    
-        
-#         ref_lattice = read(reference,format=fileformat)
-#         original = np.array([[2,0,0],[0,2,0],[0,0,2]])##Check this out more?
-#         ref_lattice = make_supercell(ref_lattice, original)
-        
-        
-#         idx=[i for i,x in enumerate(ref_lattice.numbers) if x==atom_number]
-#         points_=ref_lattice.get_scaled_positions()
-#         ll=np.array([points_[i] for i in idx])*2
-        
+        #finds the scaling factor to fit to the structure's points
         self.scale=minimize(cost,x0,method='nelder-mead',args=(lattice_locations,al))['x']
         self.d,lattice_idx=cost(self.scale,lattice_locations,al,lattice=True)
         lattice_locations*=self.scale
         lattice_locations+=base
 
         
-
+        #Solves for the i,j,k integers of each atom in the structure after the fit
         lattice_positions=np.zeros([len(self.atom_locations),3])
         for basis in range(3):
             v=lattice_locations[:,basis]
@@ -124,43 +128,11 @@ class amorphous_order:
         
         self.lattice_points=lattice_positions
         self.ll=np.array([lattice_locations[i] for i in lattice_idx])
-        # self.atom_locations=np.array(al)
 
 
 
 
 
-        # ll_.append(lattice_locations_)
-        # d_.append(d)
-        # ll_=[ll_[i] for i in np.argsort(d_)]
-        # al_=[al_[i] for i in np.argsort(d_)]
-        # f=[f[i] for i in np.argsort(d_)]
-
-    
-    
-    
-    
-    
-    
-    
-    
-#         points=np.zeros([len(self.atom_locations),3])
-#         vecs=[[1,0,0],[0,1,0],[0,0,1]]
-#         spread=[]
-#         for k,v in enumerate(vecs):
-#             y=[np.dot(a,v) for a in self.atom_locations]
-#             x_=np.argsort(y)
-#             res=[]
-#             div=division[k]
-#             x=np.zeros(len(y))
-#             split=np.split(x_,div)
-#             for i,n in enumerate(split):
-#                 for j,m in enumerate(split[0]):
-#                     x[split[i][j]]=i+1
-#             for l,ints in enumerate(x):
-#                 points[l][k]=ints
-#         self.lattice_points=np.array(points)
-#         print(self.lattice_points)
     
     def calculate_spacing(self):
         """
@@ -189,7 +161,8 @@ class amorphous_order:
                                 
     def plane_order(self,plane):
         """
-        Calculates the order of an individual plane
+        Calculates the order of an individual plane.
+        Order is defined as the average unit lattice deviation from all atoms in any direction
         """
         
         plane=np.array(plane)/np.linalg.norm(plane) #must normalize plane so miller planes can be compared.
