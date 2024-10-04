@@ -1,4 +1,4 @@
-# Amorphous_miller_plot
+# PyLRO
 The goal of the amorpohous miller plot function is to calculate and display the relative periodicity of miller planes in an amorphous solid. 
 
 Workflow:
