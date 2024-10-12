@@ -310,9 +310,11 @@ class Order_plot():
         
         #Prep heights for sphere scaling
         valss=vals
+        # self.valssmax=valss.max()
         valss/=valss.max()
         valss*=mmm
-
+        # valss=vals
+        # valss/=valss.max()
 
         for i,x in enumerate(valss):
             xyzs[i]*=np.abs(x)
@@ -334,35 +336,112 @@ class Order_plot():
         self.x=x
         self.y=y
         self.z=z
+        self.colorscale = [
+            [0, "rgb(84,48,5)"],
+            [1, "rgb(84,48,5)"],
+        ]
         cmap=self.colormap_gen_(np.min(I),np.max(I))
+        cscale_=[]
+        for i in range(3):
+            cscale_.append(tuple(x*255 for x in cmap[i]))
+        cscale=[[0.,'rgb'+str(cscale_[0])],[.5,'rgb'+str(cscale_[1])],[1.,'rgb'+str(cscale_[2])]]
+        print(cscale)
         if angstrom:
-            cmap='Jet'
+            cmap='Jet'   
+#         color_intensity=[self.color_func(x[i], y[i],z[i]) for i in range(len(x))]
+
         
+#         points2D=np.vstack([phi,rho]).T
+#         tri=Delaunay(points2D)
+#         simplices=tri.simplices
+
+#         layout = go.Layout(scene=dict(aspectmode='data',annotations=self.get_axis_names()))
+#         mesh3d_fig = go.Figure(data=[
+#             go.Mesh3d(
+#                 x=x,
+#                 y=y,
+#                 z=z,
+#                 i=tri.simplices[:, 0],
+#                 j=tri.simplices[:, 1],
+#                 k=tri.simplices[:, 2],
+#                 intensity=color_intensity,  # Color based on z-values or another scalar field
+#                 colorscale='Jet',
+#                 colorbar=dict(
+#                     title="1-O",
+#                     titleside='right',
+#                     titlefont=dict(size=16),
+#                     tickvals=np.linspace(z.min(), z.max(), 5),
+#                     tickfont=dict(size=12)
+#                 ),
+#                 showscale=True  # Show colorbar
+#             )
+#             ], layout=layout)
+#         # mesh3d_fig.add_trace(go.Scatter3d(x = [1.1,0,0], y = [0,1.1,0], z=[0,0,1.1], mode="text", text = ['a','b','c'],textfont=dict(size=29)))
+#         self.add_axis_arrows(mesh3d_fig)
+#         mesh3d_fig.update_scenes(camera_projection_type='orthographic')
+
+#         mesh3d_fig.show()
         
         
         points2D=np.vstack([phi,rho]).T
         tri=Delaunay(points2D)
         simplices=tri.simplices
-
-        trisurf=create_trisurf(x=x,y=y,z=z,colormap=cmap, simplices=simplices,plot_edges=False,color_func=self.color_func_,show_colorbar=True)
-        self.colorscale = [
-            [0, "rgb(84,48,5)"],
-            [1, "rgb(84,48,5)"],
-        ]
         layout = go.Layout(scene=dict(aspectmode='data',annotations=self.get_axis_names()))
+
+        trisurf=create_trisurf(x=x,y=y,z=z,colormap=cmap, simplices=simplices,plot_edges=False,color_func=self.color_func_,show_colorbar=False)
+  
+
         fig=go.Figure(data=trisurf, layout=layout)
-        fig.add_trace(go.Scatter3d(x = [1.1,0,0], y = [0,1.1,0], z=[0,0,1.1], mode="text", text = ['a','b','c']))
+        fig.add_trace(go.Scatter3d(x = [1.1,0,0], y = [0,1.1,0], z=[0,0,1.1], mode="text", text = ['a','b','c'],textfont=dict(size=29,family='Times New Roman')))
         self.add_axis_arrows(fig)
         fig.update_scenes(camera_projection_type='orthographic')
+        fig.update_layout(
+            scene=dict(
+        xaxis=dict(
+            tickvals=[-1,0,1],tickfont=dict(size=20,family='Times New Roman')  # Custom tick positions on the x-axis  # Custom tick labels
+        ), 
+        yaxis=dict(
+            tickvals=[-1,0],tickfont=dict(size=20,family='Times New Roman')  # Custom tick positions on the y-axis
+              # Custom tick labels
+        ),
+        zaxis=dict(
+            tickvals=[1,0],tickfont=dict(size=20,family='Times New Roman')),
+        xaxis_title='',
+        yaxis_title='',
+        zaxis_title=''))
+       
+        fig.update_layout(showlegend=False)
+        mesh3dcbar=go.Mesh3d(x=[0,0],y=[0,0],z=[np.min(I),np.max(I)],intensity=z,showscale=True, colorscale=cscale,opacity=0,cmin=np.min(I),cmax=np.max(I),
+                                colorbar=dict(len=.8,thickness=20,tickvals=np.round(np.linspace(np.min(I)*1.01,np.max(I)*.99,5),2),tickfont=dict(size=24,family='Times New Roman'),
+                                title=dict(text='Order',font=dict(size=24,family='Times New Roman'),side='top'),x=.9))
 
-
+        fig.add_trace(mesh3dcbar)
+        fig.show(config={
+            'displayModeBar': True,         # Keeps other buttons
+            'modeBarButtonsToRemove': ['toggleSpikelines', 'resetCameraDefault3d', 'hoverClosest3d', 'hoverClosestCartesian'],  # Customize buttons to remove
+            'showTips': False})
         
         
-        fig.show()
-        
-        
 
 
+    # def colormap_gen(self,low,high,threshold=.8):
+    #     #connects blue-yellow-red
+    #     #temporary no yellow
+    #     print(low,high)
+    #     blue=np.array([0,0,1])
+    #     yellow=np.array([1,1,0])
+    #     red=np.array([1,0,0])
+    #     if low<threshold:
+    #         c1=blue
+    #     else:
+    #         x1=(1-low)/(1-threshold)
+    #         x2=1-x1
+    #         c1=x1*blue+x2*red
+    #     x1=(1-high)/(1-threshold)
+    #     x2=1-x1
+    #     c2=x1*blue+x2*red
+    #     print(c1,c2)
+    #     return [tuple(c1),tuple(c2)]
     
     def colormap_gen_(self,low,high,threshold=.8):
         blue=np.array([0,0,1])
@@ -551,7 +630,7 @@ class Order_plot():
         """
         plots abc axis labels
         """
-        d = dict(showarrow=False, text=ax, xanchor="left", font=dict(color="#1f1f1f"))
+        d = dict(showarrow=False, text=ax, xanchor="left", font=dict(color="#1f1f1f",size=28))
 
         if ax == "a":
             d["x"] = 1.1
@@ -635,5 +714,6 @@ def fibonacci_sphere(samples=1000):
         points.append((x, y, z))
 
     return np.array(points)
+
 
 
