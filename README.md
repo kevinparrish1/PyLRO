@@ -13,6 +13,14 @@ Workflow:
 
 The function will be useful for displaying the process of disorder created in exploration of free energy landscapes. It should also help display directions that may retain bulk periodic properties in an amorphous solids.
 
+```
+>>> import PyLRO
+>>> amor=PyLRO.pylro('AlPO4_S812/POSCAR.1',13)
+>>> amor.lattice_fit()
+>>> amor.plane_order([0,0,1])
+0.16073258564239593
+>>> amor.miller_sphere_plot()
+```
 ![millersphere](https://github.com/user-attachments/assets/01f26330-98f9-4d57-b0ce-401c90fb6f91)
 
 
