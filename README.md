@@ -13,6 +13,8 @@ Workflow:
 
 The function will be useful for displaying the process of disorder created in exploration of free energy landscapes. It should also help display directions that may retain bulk periodic properties in an amorphous solids.
 
+Contained in AlPO4_S812 are 812 poscar files for amorphous structures of AlPO4 within the swarm of low symmetry structures found through the stochastic surface walking method described in ["Sheng-Cai Zhu, 2022"](https://pubs.acs.org/doi/10.1021/jacs.2c01717#:~:text=This%20unique%20case%20of%20memory,with%20the%20same%20topological%20linkage.)
+
 ```
 >>> import PyLRO
 >>> amor=PyLRO.pylro('AlPO4_S812/POSCAR.1',13)
