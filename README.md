@@ -13,11 +13,11 @@ Workflow:
 
 The function will be useful for displaying the process of disorder created in exploration of free energy landscapes. It should also help display directions that may retain bulk periodic properties in an amorphous solids.
 
-Contained in AlPO4_S812 are 812 poscar files for amorphous structures of AlPO4 within the swarm of low symmetry structures found through the stochastic surface walking method described in ["Sheng-Cai Zhu, 2022"](https://pubs.acs.org/doi/10.1021/jacs.2c01717#:~:text=This%20unique%20case%20of%20memory,with%20the%20same%20topological%20linkage.). This program was designed in collaboration with authors of this publication with the primary purpose of corroborating their findings regarding long range topical order in AlPO4.
+Contained in S812 are 812 poscar files for amorphous structures of AlPO4 within the swarm of low symmetry structures found through the stochastic surface walking method described in ["Sheng-Cai Zhu, 2022"](https://pubs.acs.org/doi/10.1021/jacs.2c01717#:~:text=This%20unique%20case%20of%20memory,with%20the%20same%20topological%20linkage.). This program was designed in collaboration with authors of this publication with the primary purpose of corroborating their findings regarding long range topical order in AlPO4.
 
 ```
 >>> import PyLRO
->>> amor=PyLRO.pylro('AlPO4_S812/POSCAR.1',13)
+>>> amor=PyLRO.pylro('S812/POSCAR.1',13)
 >>> amor.lattice_fit()
 >>> amor.plane_order([0,0,1])
 0.16073258564239593
