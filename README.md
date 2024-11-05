@@ -21,7 +21,8 @@ The function will be useful for displaying the process of disorder created in ex
 0.16073258564239593
 >>> amor.miller_sphere_plot()
 ```
-![millersphere](https://github.com/user-attachments/assets/01f26330-98f9-4d57-b0ce-401c90fb6f91)
 
+
+![miller_sphere](https://github.com/user-attachments/assets/9389d07a-6d29-43d6-b60e-114eea3a4b32)
 
 
